@@ -1,0 +1,85 @@
+DOM
+
+document.body.childNodes
+	Включает полный список элементов в том числе и пробелы
+
+.children
+	Тоже самое только исключает пробелы
+
+childNodes, children
+	Список дочерних узлов.
+firstChild, lastChild
+	Первый и последний потомки
+parentNode
+	Родительский узел
+previousSibling, nextSibling
+	Соседи влево-вправо
+
+TABLE
+	table.rows — список строк TR таблицы.
+	table.caption/tHead/tFoot — ссылки на элементы таблицы CAPTION, THEAD, TFOOT.
+	table.tBodies — список элементов таблицы TBODY, по спецификации их может быть несколько.
+	THEAD/TFOOT/TBODY
+	tbody.rows — список строк TR секции.
+TR
+	tr.cells — список ячеек TD/TH
+	tr.sectionRowIndex — номер строки в текущей секции THEAD/TBODY
+	tr.rowIndex — номер строки в таблице
+TD/TH
+	td.cellIndex — номер ячейки в строке
+
+FORM
+	Форму можно получить как document.forms[name/index].
+Элементы
+	Элементы в форме: form.elements[name/index]. Каждый элемент имеет ссылку на форму в свойстве form.
+
+
+
+
+nodeType
+	Тип узла. Самые популярные типы: "1" - для элементов и "3" - для текстовых узлов. Только для чтения.
+nodeName/tagName
+	Название тега заглавными буквами. nodeName имеет специальные значения для узлов-неэлементов. Только для чтения.
+innerHTML
+	Внутреннее содержимое узла-элемента в виде HTML. Можно изменять.
+outerHTML
+	Полный HTML узла-элемента. При записи в elem.outerHTML переменная elem сохраняет старый узел.
+nodeValue/data
+	Содержимое текстового узла или комментария. Свойство nodeValue также определено и для других типов узлов. Можно изменять.
+
+attributes
+	Массив объектов ATTR{name:,value:} всех атрибутов
+getAttribute('ABOUT')
+
+
+Метод					Ищет по..			Ищет внутри элемента?	Поддержка
+getElementById			id					-						везде
+getElementsByName		name				-						везде
+getElementsByTagName	тег или '*'			✔						везде
+getElementsByClassName	классу				✔						везде, IE9+
+querySelector(All)		CSS-селектор		✔						везде, CSS 2.1 в IE8+
+
+Дополнительно есть метод elem.matchesSelector(css), который проверяет, удовлетворяет ли элемент CSS-селектору. Он поддерживается большинством браузеров в префиксной форме (ms, moz, webkit).
+XPath поддерживается большинством браузеров, кроме IE, даже 9й версии. Кроме того, как правило, querySelector удобнее. Поэтому он используется редко.
+
+
+document.createElement(tag)
+	Создает новый элемент с указанным тегом: var div = document.createElement('div');
+
+document.createTextNode(text)
+	Создает новый текстовый узел с данным текстом:
+
+newElem = elem.cloneNode(true)
+	Клонирует элемент elem, вместе с атрибутами, включая вложенные в него.
+newElem = elem.cloneNode(false)
+	Клонирует элемент elem, вместе с атрибутами, но без подэлементов.
+parentElem.appendChild(elem)
+	Добавляет elem в список дочерних элементов parentElem. Новый узел добавляется в конец списка.
+parentElem.insertBefore(elem, nextSibling)
+	Вставляет elem в список дочерних parentElem, перед элементом nextSibling.
+
+parentElem.removeChild(elem)
+	Удаляет elem из списка детей parentElem.
+parentElem.replaceChild(elem, currentElem)
+	Среди детей parentElem заменяет currentElem на elem.
+
