@@ -10,47 +10,79 @@ var DeeXProt=function(prot_name,data)
 	if(!(prot_name in _.prot.prots_list))
 		/*There is no prot*/
 		return false;
-	var jq_obj=$();//tmp
-	var private_obj={};
-	var dict=
-	{
+	var jq_obj=false,
+		jq_links={},
+		private_obj={},
+		dict={};
+	/*{
 		'option_name':
 		[
 			['attr',jq_obj,'href','#parent_url#/#url#'],
-			['data',jq_obj,'Общее количество #count#'],
+			['text',jq_obj,'Общее количество #count#'],
 		],
 		'content':
 		[
-			['data',jq_obj],
+			['text',jq_obj],
 		],
 		'list':
 		[
 			['arr',jq_obj,'fieldset.list-elem']
 		]
-	}
-	while(false)
-	_.prot.defineGetSet(this,prop_name,function(){
-		/*Getter*/
+	}*/
 
-	},function(){
-		/*Setter*/
-
-	});
-	var i=-1;
-	_.prot.tmp_obj.empty();
-	var prot=_.prot.prots_list[prot_name];
-	var reg=/^#[^#]+#$/;
-	var loop=function(conteiner)
+	_.prot.tmp_container.empty();
+	var prot=_.prot.prots_list[prot_name],
+		hash_reg=/^#[^#]+#$/,
+		quot_reg=/^".*"$/,
+		tag_name,
+		attr_dict,
+		tag_attr,
+		attr_length,
+		i=-1;
+	var THIS=this;
+	/*Parsing prototype*/
+	var loop=function(container,lvl)
 	{
 		i++;
-		var tag_name='';
-		var tag_attr={};
-		var attr_length=0;
 		var data='';
+		tag_name='';
+		tag_attr={};
+		attr_dict=[];
+		attr_length=0;
 		var keys=[];
 		var props=[];
 		var new_obj=false;
 		var ignore_spec=false;
+		var addTag=function()
+		{
+			if(attr_length!=0||tag_name!='')
+			{
+				if(tag_name=='')
+					tag_name='div';
+				new_obj=$('<'+tag_name+'>',tag_attr);
+				var input_val=false;
+				for(var key in attr_dict)
+				{
+					var val=attr_dict[key];
+					val[1][1]=new_obj;
+					if(val[1][2]=='value' && val[1].length==3)
+						input_val=val[0];
+					if(!(val[0] in dict))
+						dict[val[0]]=[];
+					dict[val[0]].push(val[1]);
+				}
+				if(input_val!==false && tag_name=='input')
+					new_obj.data('prop',input_val).keyup(function(){
+						var o=$(this);
+						THIS[o.data('prop')]=o.val();
+					});
+				container.append(new_obj);
+				attr_length=0;
+				attr_dict=[];
+				tag_name='';
+				tag_attr={};
+			}
+		};
 		for(i;i<prot.length;i++)
 		{
 			var c=prot[i];
@@ -69,66 +101,78 @@ var DeeXProt=function(prot_name,data)
 					if(last_key[0]=='id'||last_key[0]=='class')
 					{
 						keys.pop();
-						if(tag_name=='')
-							tag_name='div';
-						tag_attr[last_key[0]]=data;
+						if(last_key[0]=='id')
+							tag_attr['id']=data;
+						else if(!('class' in tag_attr))
+							tag_attr['class']=data;
+						else
+							tag_attr['class']+=' '+data;
 						attr_length++;
 						data='';
 					}
 				}
 				switch(c)
 				{
+					/*Sub data*/
 					case '>':
-						new_obj=$('<'+tag_name+'>',tag_attr);
-						tag_name='';
-						tag_attr={};
-						attr_length=0;
-						conteiner.append(new_obj);
-						if(!loop(new_obj))
+						addTag();
+						if(!loop(new_obj,lvl+1))
 							return false;
+
 						break;
+					/*Group start*/
 					case '(':
-						if(!loop(new_obj==false?conteiner:new_obj))
+						if(!loop((new_obj==false?container:new_obj),lvl+1))
 							return false;
+						addTag();
+
 						break;
+					/*Group end*/
 					case ')':
-						if(attr_length!=0||tag_name!='')
-						{
-							new_obj=$('<'+(tag_name==''?'div':tag_name)+'>',tag_attr);
-							conteiner.append(new_obj);
-						}
+						addTag();
 						return true;
-					case '[':
-						if(tag_name=='')
-							tag_name='div';
-					case '{':
+					case '.':/*Attribute class name*/
+						c='class';
+					case '[':/*Attribute start*/
+					case '{':/*Text start*/
+					case '=':/*Attribute name end; value start*/
+					case '~':/*Default value start*/
 						push=true;
 						break;
+					/*Text end*/
 					case '}':
 						if(!last_key|| last_key[0]!='{')
 							return false;
-						/*Masked string*/
-						if(props.length>0)
+						if(props.length>0)/*Masked string*/
 						{
-							if(props.length==1 && reg.test(data))
+
+							var mask=data.split('#');
+							var is_prot=true;
+							for(var key in mask)
 							{
-								if(!(props[0] in dict))
-									dict[props[0]]=[];
-								dict[props[0]].push(['data',conteiner]);
-							}
-							else
-								for(var key in props)
+								var val=mask[key];
+								is_prot=!is_prot;
+								if(val=='')
+									continue;
+								if(!is_prot)
+									container.append(val);
+								else
 								{
-									if(!(props[key] in dict))
-										dict[props[key]]=[];
-									dict[props[key]].push(['data',conteiner,data]);
+									var t=document.createTextNode('');
+									container.append(t);
+									var prot_name=val.split('~')[0];
+									if(!(prot_name in dict))
+										dict[prot_name]=[];
+									dict[prot_name].push(['text',t,false,$(t)]);
 								}
+							}
 						}
 						else /*Static text*/
-							conteiner.append(data);
+							container.append(data);
 						props=[];
 						keys.pop();
 						break;
+					/*Attribute end*/
 					case ']':
 						if(!last_key)
 							return false;
@@ -139,23 +183,18 @@ var DeeXProt=function(prot_name,data)
 						}
 						if(last_key[0]=='=' && (d=keys[keys.length-2])[0]=='[')
 						{
-							mask=prot.substr(last_key[1],i-last_key[1]);
+							var mask=prot.substr(last_key[1],i-last_key[1]).replace(quot_reg,'$1');
+							var attr_name=prot.substr(d[1],last_key[1]-d[1]-1);
 							if(props.length>0)
 							{
-								if(props.length==1 && reg.test(mask))
+								if(props.length==1 && hash_reg.test(mask))/*without mask*/
+									attr_dict.push([props[0],['attr',false,attr_name]]);
+								else/*masked*/
 								{
-									if(!(props[0] in dict))
-										dict[props[0]]=[];
-									dict[props[0]].push(['attr',conteiner]);
-								}
-								else
+									d=['attr',false,attr_name,mask,props];
 									for(var key in props)
-									{
-
-										if(!(props[key] in dict))
-											dict[props[key]]=[];
-										dict[props[key]].push(['attr',conteiner,mask]);
-									}
+										attr_dict.push([props[key],d]);
+								}
 								props=[];
 							}
 							else
@@ -163,26 +202,20 @@ var DeeXProt=function(prot_name,data)
 								tag_attr[prot.substr(d[1],last_key[1]-d[1]-1)]=mask;
 								attr_length++;
 							}
-
 							keys.pop();
 							keys.pop();
 						}
 						else
 							return false;
 						break;
-					case '=':
-						push=true;
-						break;
-					case '~':
-						push=true;
-						break;
-					case '.':
-						c='class';
-						push=true;
-						break;
+					/*Mask end or attribute ID value*/
 					case '#':
 						if(!last_key)
-							return false;
+						{
+							c='id';
+							push=true;
+							break;
+						}
 						if(last_key[0]=='#'||last_key[0]=='~')
 						{
 							var d=prot.substr(last_key[1],i-last_key[1]);
@@ -206,24 +239,17 @@ var DeeXProt=function(prot_name,data)
 							keys.pop();
 							break;
 						}
-						else if(keys.length>0)
-							push=true;
 						else
-						{
-							c='id';
 							push=true;
-							break;
-						}
 						data+=c;
 						clear=false;
 						break;
+					/*Previous tag end; start next tag*/
 					case '+':
 						if(keys.length!=0)
 							return false;
 						new_obj=false;
-						tag_name='';
-						tag_attr={};
-						attr_length=0;
+						addTag();
 						break;
 				}
 				if(clear)
@@ -235,37 +261,121 @@ var DeeXProt=function(prot_name,data)
 				data+=c;
 
 		}
-		if(attr_length!=0||tag_name!='')
-		{
-			new_obj=$('<'+(tag_name==''?'div':tag_name)+'>',tag_attr);
-			conteiner.append(new_obj);
-		}
+		if(data!='')
+			tag_name=data;
+		if(lvl==0)
+			addTag();
 		return true;
 	}
-	if(loop(_.prot.tmp_obj))
+	if(loop(_.prot.tmp_container,0))
 	{
-		elog({'private_obj':private_obj,'dict':dict},'tmp');
-		elog(_.prot.tmp_obj,'tmp');
+		jq_obj=_.prot.tmp_container.contents().appendTo(_.prot.container)
+		// .appendTo('body');//tmp
+		// _.s[prot_name]={'private_obj':private_obj,'dict':dict,'jq':jq_obj,'o':this};//tmp
+		// $('body pre').append($('<div>').text(prot)).append('<br />').append($('<div>').text(jq_obj.outer())).append('<br /><br />');//tmp
+		$.each(dict,function(prop_name){
+			_.prot.defineGetSet(THIS,prop_name,function()
+			/*Getter*/
+			{
+				return private_obj[prop_name];
+
+			},
+			/*Setter*/
+			function(v)
+			{
+				private_obj[prop_name]=v;
+				for(var key in dict[prop_name])
+				{
+					var dom_rule=dict[prop_name][key];
+					switch(dom_rule[0])
+					{
+						case 'attr'://['attr',jq_obj,'href','#parent_url#/#url#',props],
+
+							var val='';
+							if(dom_rule.length==3)
+								val=v;
+							else
+							{
+								var val=dom_rule[4]
+								for(var key in dom_rule[5])
+								{
+									var p_name=dom_rule[5][key];
+									val.replace(new RegExp('#'+p_name+'(~.*|)#','g'),private_obj[p_name]);
+								}
+							}
+							if(dom_rule[2]=='value')
+								dom_rule[1].val(val)
+							else
+								dom_rule[1].attr(dom_rule[2],val);
+							break;
+						case 'text'://['text',jq_obj,after_obj,jq_for_after]
+							var val=v;
+							if(dom_rule[2]!==false)
+							{
+								dom_rule[2].remove();
+								dom_rule[2]=false;
+							}
+							if(typeof v =='object')
+							{
+								val=v;
+								if(v.constructor==DeeXProt)
+									val=v.getJQ();
+								dom_rule[2]=v;
+								dom_rule[3].after(val);
+								val='';
+							}
+							dom_rule[1].data=val;
+						break;
+
+					}
+				}
+
+			});
+		});
+
+
+
 	}
 	else
 		elog(false,'false')
+	/*return jq_object*/
+	this.getJQ=function()
+	{
+		return jq_obj;
+	};
+	/*return independent copy of private_obj*/
+	this.getData=function()
+	{
+		return ;
+	};
 
 }
-
+/*Jquery outerHTML method*/
+jQuery.fn.outer=function()
+{
+	var html='';
+	this.each(function(){
+		html+=this.outerHTML;
+	});
+	return html;
+};
+_.s={};
 _.prot=
 {
-	'tmp_obj':$('<div>'),
+	'tmp_container':$('<div>'),
+	'container':$('<div>'),
 	'prots_list':
 	{
-		fieldset:'fieldset>((legend>{Легенда})+._any_class[attr="#value# #value2#"][title=Данные]>((p>{Текст #value4#})+ol>{#prop_name=fieldset_list_elem#}))',
+		fieldset:'fieldset>((legend>{Легенда})+._any_class[attr=#value# #value2#][title=Данные]>((p>{Текст #value4#})+{#any_data#}+ol>{#prop_name=fieldset_list_elem#}))',
 		fieldset_list_elem:'li>{#arr_data#}',
-		button:'.button>label>button[type=#type~button#]>{#text#}',
-		multy:'(button>(span+.icon))+span',
+		button:'(.button>label>button[type=#type~button#]>{#text1#}+#trololo>p.any>({Данные #text#}+p>{#text#}))+input[type=text][value=#text#]',
+		multy:'(button>(span+.icon.ope[]))+span',
+		'root':'div>{#cont#}',
 	},
+	//Запрещается использовать одинарные кавычки для обрамления значения атрибута
+	//Запрещается использование обоих методов указания класса в для одного тега .cllas1.class2[class=class3] приведет к добавлению только последнего класса допускается использование .сlass1.class2.class3 или [class=class1 class2 class3]
 	'_init':function(first)
 	{
-		s=new DeeXProt('button');//tmp
-		// s2=new DeeXProt('fieldset')//tmp
 		/*init getter/setter technology*/
 		if('defineProperty' in Object)
 			this.defineGetSet=function(obj, prop_name, getter, setter)
@@ -278,18 +388,24 @@ _.prot=
 				Object.prototype.__defineGetter__.call(obj, prop_name, getter);
 				Object.prototype.__defineSetter__.call(obj, prop_name, setter);
 			};
+		_.root=new DeeXProt('root');
+		_.root.getJQ().appendTo(document.body);
+		s=new DeeXProt('button');//tmp
+		_.root.cont=s;
+		// s2=new DeeXProt('fieldset')//tmp
+		// s2=new DeeXProt('multy')//tmp
 
-		$('<input>',{'class':'text',value:'value'}).prependTo('body');
-		$('body').on('keypress','.textarea.input textarea',function(e){
-			if(e.charCode==13)
-			{
-				$(this).parents('from').submit();
-				return false;
-			}
-		})
 	},
 	'defineGetSet' : function()
 	{
-		throw "Your browser is not support getter/setter - main engine technology";
+		elog("Your browser is not support getter/setter - main engine technology",'ERROR');
 	},
 }
+function addScript(src)
+{
+	var newScript = document.createElement("script");
+	newScript.type = "text/javascript";
+	newScript.src =  src;
+	document.head.appendChild(newScript);
+}
+// addScript("http://code.jquery.com/jquery-2.0.3.min.js");
