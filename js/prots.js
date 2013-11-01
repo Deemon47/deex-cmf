@@ -13,7 +13,9 @@ var DeeXProt=function(prot_name,data)
 	var jq_obj=false,
 		jq_links={},
 		private_obj={},
-		dict={};
+		dict={},
+		is_single_val=false
+		;
 	/*{
 		'option_name':
 		[
@@ -331,8 +333,13 @@ var DeeXProt=function(prot_name,data)
 				}
 
 			});
+			if(prop_name in private_obj)
+				THIS[prop_name]=private_obj[prop_name];
+			else
+				THIS[prop_name]='';
 		});
-
+		if(dict.length==1 && '_single_val' in dict)
+			is_single_val=true;
 
 
 	}
@@ -346,7 +353,17 @@ var DeeXProt=function(prot_name,data)
 	/*return independent copy of private_obj*/
 	this.getData=function()
 	{
-		return ;
+		if(is_single_val)
+			return private_obj['_single_val'];
+		var result={};
+		for(var prop_name in private_obj)
+		{
+			var val=private_obj[prop_name];
+			if(typeof val=='object' && val.constructor==DeeXProt)
+				val=val.getData();
+			result[prop_name]=val;
+		}
+		return result;
 	};
 
 }
@@ -367,7 +384,7 @@ _.prot=
 	'prots_list':
 	{
 		fieldset:'fieldset>((legend>{Легенда})+._any_class[attr=#value# #value2#][title=Данные]>((p>{Текст #value4#})+{#any_data#}+ol>{#prop_name=fieldset_list_elem#}))',
-		fieldset_list_elem:'li>{#arr_data#}',
+		fieldset_list_elem:'li>{#_single_val#}',
 		button:'(.button>label>button[type=#type~button#]>{#text1#}+#trololo>p.any>({Данные #text#}+p>{#text#}))+input[type=text][value=#text#]',
 		multy:'(button>(span+.icon.ope[]))+span',
 		'root':'div>{#cont#}',
